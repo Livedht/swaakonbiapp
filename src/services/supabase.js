@@ -287,16 +287,12 @@ export const fetchStoredEmbeddings = async () => {
             throw error;
         }
 
-        // Legg til mer detaljert logging
-        console.log('Raw data from Supabase:', {
-            totalCourses: data.length,
-            sampleCourse: {
-                kurskode: data[0]?.kurskode,
-                språk: data[0]?.språk,
-                link_nb: data[0]?.link_nb,
-                link_en: data[0]?.link_en,
-                allFields: Object.keys(data[0] || {})
-            }
+        // Mer detaljert logging
+        console.log('Fetched data stats:', {
+            totalFetched: data.length,
+            withEmbeddings: data.filter(c => c.hf_embedding).length,
+            withoutEmbeddings: data.filter(c => !c.hf_embedding).length,
+            sampleEmbedding: data[0]?.hf_embedding ? typeof data[0].hf_embedding : 'no embedding'
         });
 
         const processedCourses = data.map(course => {
@@ -305,16 +301,26 @@ export const fetchStoredEmbeddings = async () => {
                 processedEmbedding = typeof course.hf_embedding === 'string'
                     ? course.hf_embedding.slice(1, -1).split(',').map(Number)
                     : course.hf_embedding;
+
+                if (!processedEmbedding) {
+                    console.warn(`No embedding for course: ${course.kurskode}`);
+                    return null;
+                }
+
+                return {
+                    ...course,
+                    embedding: processedEmbedding
+                };
             } catch (e) {
                 console.error(`Error processing embedding for course ${course.kurskode}:`, e);
                 return null;
             }
-
-            return {
-                ...course,
-                embedding: processedEmbedding
-            };
         }).filter(Boolean);
+
+        console.log('Processed courses stats:', {
+            totalProcessed: processedCourses.length,
+            difference: data.length - processedCourses.length
+        });
 
         return processedCourses;
     } catch (error) {
