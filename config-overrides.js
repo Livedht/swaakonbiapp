@@ -18,9 +18,9 @@ module.exports = function override(config) {
         "buffer": require.resolve("buffer"),
         "url": require.resolve("url"),
         "zlib": require.resolve("browserify-zlib"),
-        "process": require.resolve("process/browser.js"),
-        "util": require.resolve("util"),
-        "assert": require.resolve("assert"),
+        "process": require.resolve("process/browser"),
+        "util": require.resolve("util/"),
+        "assert": require.resolve("assert/"),
         "fs": false,
         "path": require.resolve("path-browserify"),
         "os": require.resolve("os-browserify/browser"),
@@ -35,7 +35,7 @@ module.exports = function override(config) {
     // Add webpack plugins
     config.plugins = (config.plugins || []).concat([
         new webpack.ProvidePlugin({
-            process: require.resolve("process/browser.js"),
+            process: 'process/browser',
             Buffer: ['buffer', 'Buffer']
         }),
         new webpack.DefinePlugin({
