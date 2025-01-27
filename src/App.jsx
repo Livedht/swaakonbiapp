@@ -23,6 +23,7 @@ const App = () => {
     const [currentView, setCurrentView] = useState('main');
     const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
     const [restoredSearch, setRestoredSearch] = useState(null);
+    const [error, setError] = useState(null);
 
     const showNotification = useCallback((message, severity = 'info') => {
         setNotification({ open: true, message, severity });
@@ -168,6 +169,25 @@ const App = () => {
         checkAdminStatus();
     }, [checkAdminStatus]);
 
+    useEffect(() => {
+        // Sjekk at miljøvariabler er tilgjengelige
+        const envVars = {
+            SUPABASE_URL: process.env.REACT_APP_SUPABASE_URL,
+            SUPABASE_KEY: process.env.REACT_APP_SUPABASE_KEY,
+            OPENAI_API_KEY: process.env.REACT_APP_OPENAI_API_KEY,
+            HUGGINGFACE_API_KEY: process.env.REACT_APP_HUGGINGFACE_API_KEY
+        };
+
+        const missingVars = Object.entries(envVars)
+            .filter(([_, value]) => !value)
+            .map(([key]) => key);
+
+        if (missingVars.length > 0) {
+            setError(`Manglende miljøvariabler: ${missingVars.join(', ')}`);
+            console.error('Missing environment variables:', missingVars);
+        }
+    }, []);
+
     // Memoize the header content
     const HeaderContent = useMemo(() => (
         <Box sx={{
@@ -312,6 +332,12 @@ const App = () => {
                     transition: 'background-color 0.3s ease'
                 }}>
                     {HeaderContent}
+                    {error && (
+                        <Box sx={{ p: 3, color: 'error.main' }}>
+                            <Typography variant="h6">Error:</Typography>
+                            <Typography>{error}</Typography>
+                        </Box>
+                    )}
                     <Fade in={true} timeout={500}>
                         <Box sx={{
                             p: 2,
