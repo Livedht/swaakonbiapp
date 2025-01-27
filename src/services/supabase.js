@@ -8,10 +8,11 @@ if (!supabaseUrl || !supabaseKey) {
         hasUrl: !!supabaseUrl,
         hasKey: !!supabaseKey
     });
-    throw new Error('Missing Supabase environment variables');
 }
 
-console.log('Initializing Supabase client with URL:', supabaseUrl);
+// Legg til logging for debugging
+console.log('Supabase URL type:', typeof supabaseUrl);
+console.log('Supabase Key type:', typeof supabaseKey);
 
 export const supabase = createClient(supabaseUrl, supabaseKey, {
     auth: {
@@ -19,6 +20,11 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
         persistSession: true,
         detectSessionInUrl: true
     }
+});
+
+// Test connection
+supabase.auth.onAuthStateChange((event, session) => {
+    console.log('Auth state changed:', event, session);
 });
 
 // Constants for rate limiting and quotas
