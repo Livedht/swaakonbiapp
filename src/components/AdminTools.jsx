@@ -52,33 +52,33 @@ const AdminTools = () => {
     // Hent alle brukere
     const fetchUsers = async () => {
         try {
-            const { data: { users }, error } = await supabase.auth.admin.listUsers();
-            if (error) throw error;
+            // Hent alle profiler
+            const { data: profiles, error: profilesError } = await supabase
+                .from('profiles')
+                .select('*');
 
-            // Hent admin-status for alle brukere
-            const { data: roles } = await supabase
-                .from('user_roles')
-                .select('user_id, is_admin');
+            if (profilesError) throw profilesError;
 
-            const { data: userStats } = await supabase
+            // Hent brukerstatistikk
+            const { data: userStats, error: statsError } = await supabase
                 .from('user_stats')
                 .select('*');
 
-            const usersWithRoles = users.map(user => ({
-                ...user,
-                is_admin: roles?.find(role => role.user_id === user.id)?.is_admin || false,
-                stats: userStats?.find(stat => stat.user_id === user.id)
+            if (statsError) throw statsError;
+
+            const usersWithStats = profiles.map(profile => ({
+                ...profile,
+                stats: userStats?.find(stat => stat.user_id === profile.id)
             }));
 
-            setUsers(usersWithRoles);
-
-            // Oppdater statistikk
+            setUsers(usersWithStats);
             setStats({
-                totalUsers: users.length,
-                activeUsers: users.filter(u => u.last_sign_in_at).length,
-                admins: roles?.filter(r => r.is_admin).length || 0
+                totalUsers: profiles.length,
+                activeUsers: profiles.filter(p => p.last_sign_in_at).length,
+                admins: profiles.filter(p => p.is_admin).length
             });
         } catch (error) {
+            console.error('Error fetching users:', error);
             setError('Kunne ikke hente brukerliste: ' + error.message);
         }
     };

@@ -14,15 +14,25 @@ const Login = ({ onLogin }) => {
         setError(null);
 
         try {
-            console.log('Attempting login with:', { email }); // Ikke logg passordet
+            // Fjern eventuelle mellomrom og konverter til lowercase
+            const cleanEmail = email.trim().toLowerCase();
+
+            // Ikke prøv å endre æøå - Supabase skal håndtere UTF-8 tegn
             const { data, error } = await supabase.auth.signInWithPassword({
-                email,
+                email: cleanEmail,
                 password
             });
 
             if (error) {
                 console.error('Login error:', error);
-                setError(error.message);
+                // Gi en mer brukervennlig feilmelding på norsk
+                if (error.message.includes('Invalid login credentials')) {
+                    setError('Feil e-post eller passord');
+                } else if (error.message.includes('Invalid email')) {
+                    setError('Ugyldig e-postformat');
+                } else {
+                    setError('Kunne ikke logge inn: ' + error.message);
+                }
                 return;
             }
 
@@ -31,7 +41,7 @@ const Login = ({ onLogin }) => {
             }
         } catch (error) {
             console.error('Login error:', error);
-            setError('An unexpected error occurred');
+            setError('En uventet feil oppstod. Prøv igjen senere.');
         } finally {
             setLoading(false);
         }
