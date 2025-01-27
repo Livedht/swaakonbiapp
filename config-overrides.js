@@ -18,7 +18,7 @@ module.exports = function override(config) {
         "buffer": require.resolve("buffer"),
         "url": require.resolve("url"),
         "zlib": require.resolve("browserify-zlib"),
-        "process": require.resolve("process/browser"),
+        "process": false,
         "util": require.resolve("util/"),
         "assert": require.resolve("assert/"),
         "fs": false,
@@ -35,18 +35,14 @@ module.exports = function override(config) {
     // Add webpack plugins
     config.plugins = (config.plugins || []).concat([
         new webpack.ProvidePlugin({
-            process: 'process/browser',
-            Buffer: ['buffer', 'Buffer']
-        }),
-        new webpack.DefinePlugin({
-            'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
+            Buffer: ['buffer', 'Buffer'],
+            process: require.resolve('process/browser')
         })
     ]);
 
-    // Add resolve alias for process
+    // Remove process alias
     config.resolve.alias = {
-        ...config.resolve.alias,
-        "process": "process/browser.js"
+        ...config.resolve.alias
     };
 
     // Handle source maps
