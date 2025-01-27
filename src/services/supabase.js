@@ -260,42 +260,56 @@ export const fetchStoredEmbeddings = async () => {
     try {
         console.log('Fetching stored embeddings from Supabase');
 
-        const { data, error } = await supabase
-            .from('openai_embeddings')
-            .select(`
-                kurskode,
-                kursnavn,
-                credits,
-                level_of_study,
-                språk,
-                semester,
-                portfolio,
-                ansvarlig_institutt,
-                ansvarlig_område,
-                academic_coordinator,
-                hf_embedding,
-                course_content,
-                learning_outcome_knowledge,
-                learning_outcome_skills,
-                learning_outcome_general_competence,
-                link_nb,
-                link_en
-            `);
+        // Legg til paginering her
+        let allCourses = [];
+        let page = 0;
+        const pageSize = 1000;
+        let hasMore = true;
 
-        if (error) {
-            console.error('Supabase error:', error);
-            throw error;
+        while (hasMore) {
+            const { data, error } = await supabase
+                .from('openai_embeddings')
+                .select(`
+                    kurskode,
+                    kursnavn,
+                    credits,
+                    level_of_study,
+                    språk,
+                    semester,
+                    portfolio,
+                    ansvarlig_institutt,
+                    ansvarlig_område,
+                    academic_coordinator,
+                    hf_embedding,
+                    course_content,
+                    learning_outcome_knowledge,
+                    learning_outcome_skills,
+                    learning_outcome_general_competence,
+                    link_nb,
+                    link_en
+                `)
+                .range(page * pageSize, (page + 1) * pageSize - 1);
+
+            if (error) {
+                console.error('Supabase error:', error);
+                throw error;
+            }
+
+            if (!data || data.length === 0) {
+                hasMore = false;
+                break;
+            }
+
+            allCourses = allCourses.concat(data);
+            page++;
         }
 
-        // Mer detaljert logging
         console.log('Fetched data stats:', {
-            totalFetched: data.length,
-            withEmbeddings: data.filter(c => c.hf_embedding).length,
-            withoutEmbeddings: data.filter(c => !c.hf_embedding).length,
-            sampleEmbedding: data[0]?.hf_embedding ? typeof data[0].hf_embedding : 'no embedding'
+            totalFetched: allCourses.length,
+            withEmbeddings: allCourses.filter(c => c.hf_embedding).length,
         });
 
-        const processedCourses = data.map(course => {
+        const processedCourses = allCourses.map(course => {
             let processedEmbedding;
             try {
                 processedEmbedding = typeof course.hf_embedding === 'string'
@@ -316,11 +330,6 @@ export const fetchStoredEmbeddings = async () => {
                 return null;
             }
         }).filter(Boolean);
-
-        console.log('Processed courses stats:', {
-            totalProcessed: processedCourses.length,
-            difference: data.length - processedCourses.length
-        });
 
         return processedCourses;
     } catch (error) {
