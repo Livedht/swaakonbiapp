@@ -14,16 +14,24 @@ const Login = ({ onLogin }) => {
         setError(null);
 
         try {
+            console.log('Attempting login with:', { email }); // Ikke logg passordet
             const { data, error } = await supabase.auth.signInWithPassword({
                 email,
                 password
             });
 
-            if (error) throw error;
-            
-            onLogin(data.user);
+            if (error) {
+                console.error('Login error:', error);
+                setError(error.message);
+                return;
+            }
+
+            if (data?.user) {
+                onLogin(data.user);
+            }
         } catch (error) {
-            setError(error.message);
+            console.error('Login error:', error);
+            setError('An unexpected error occurred');
         } finally {
             setLoading(false);
         }
@@ -46,13 +54,13 @@ const Login = ({ onLogin }) => {
             <Typography variant="h5" component="h1" gutterBottom>
                 Logg inn
             </Typography>
-            
+
             {error && (
                 <Alert severity="error" sx={{ mb: 2 }}>
                     {error}
                 </Alert>
             )}
-            
+
             <TextField
                 fullWidth
                 label="E-post"
@@ -62,7 +70,7 @@ const Login = ({ onLogin }) => {
                 required
                 type="email"
             />
-            
+
             <TextField
                 fullWidth
                 label="Passord"
@@ -72,7 +80,7 @@ const Login = ({ onLogin }) => {
                 required
                 type="password"
             />
-            
+
             <Button
                 fullWidth
                 type="submit"

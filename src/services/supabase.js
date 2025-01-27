@@ -13,7 +13,13 @@ if (!supabaseUrl || !supabaseKey) {
 
 console.log('Initializing Supabase client with URL:', supabaseUrl);
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
+export const supabase = createClient(supabaseUrl, supabaseKey, {
+    auth: {
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: true
+    }
+});
 
 // Constants for rate limiting and quotas
 const COST_THRESHOLD = 5.0; // USD
@@ -524,4 +530,11 @@ export const deleteSearch = async (searchId) => {
         console.error('Error deleting search:', error);
         throw error;
     }
+};
+
+// Legg til denne for debugging
+export const checkAuth = async () => {
+    const { data: { session }, error } = await supabase.auth.getSession();
+    console.log('Auth check:', { session, error });
+    return { session, error };
 }; 
