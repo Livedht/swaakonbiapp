@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Box, TextField, Button, Typography, Alert } from '@mui/material';
 import { supabase } from '../services/supabase';
+import punycode from 'punycode';
 
 const Login = ({ onLogin }) => {
     const [email, setEmail] = useState('');
@@ -14,22 +15,23 @@ const Login = ({ onLogin }) => {
         setError(null);
 
         try {
-            // Fjern eventuelle mellomrom og konverter til lowercase
-            const cleanEmail = email.trim().toLowerCase();
+            // Del opp e-posten i lokal del og domene
+            const [localPart, domain] = email.trim().toLowerCase().split('@');
 
-            // Ikke prøv å endre æøå - Supabase skal håndtere UTF-8 tegn
+            // Konverter bare den lokale delen til punycode hvis den inneholder æøå
+            const punycodeEmail = /[æøåÆØÅ]/.test(localPart)
+                ? `${punycode.encode(localPart)}@${domain}`
+                : email.trim().toLowerCase();
+
             const { data, error } = await supabase.auth.signInWithPassword({
-                email: cleanEmail,
+                email: punycodeEmail,
                 password
             });
 
             if (error) {
                 console.error('Login error:', error);
-                // Gi en mer brukervennlig feilmelding på norsk
                 if (error.message.includes('Invalid login credentials')) {
                     setError('Feil e-post eller passord');
-                } else if (error.message.includes('Invalid email')) {
-                    setError('Ugyldig e-postformat');
                 } else {
                     setError('Kunne ikke logge inn: ' + error.message);
                 }
