@@ -514,3 +514,26 @@ ${!isSameCourse ? `▸ Anbefalt rekkefølge (hvis relevant)
         throw error;
     }
 };
+
+export const generateCourseAnalysis = async (courseDescription) => {
+    try {
+        const response = await openai.chat.completions.create({
+            model: "gpt-4-turbo-preview",
+            messages: [{ role: "user", content: courseDescription }],
+            temperature: 0.7,
+            max_tokens: 2500
+        });
+
+        await logApiCost(
+            'course-analysis',
+            'gpt-4-turbo-preview',
+            response.usage.prompt_tokens,
+            response.usage.completion_tokens
+        );
+
+        return response.choices[0].message.content;
+    } catch (error) {
+        console.error('Error generating course analysis:', error);
+        throw error;
+    }
+};

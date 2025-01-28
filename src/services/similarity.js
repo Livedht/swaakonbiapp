@@ -259,30 +259,38 @@ export function calculateCourseSimilarity(vecA, vecB) {
 
 // Find similar courses from a list
 export const findSimilarCourses = async (newCourseData, storedCourses) => {
-    console.log(`Processing ${storedCourses.length} courses for similarity`);
-
     try {
-        const similarities = storedCourses
+        // Legg til logging for å verifisere input
+        console.log('New course data received:', {
+            name: newCourseData.name,
+            pensum: newCourseData.pensum,
+            hasEmbedding: !!newCourseData.embedding
+        });
+
+        return storedCourses
+            .filter(course => course.embedding)
             .map(course => {
-                // Legg til logging for å se kursdata
-                console.log('Processing course:', {
-                    kurskode: course.kurskode,
-                    språk: course.språk,
-                    link_nb: course.link_nb,
-                    link_en: course.link_en
-                });
-
-                if (!course.embedding) {
-                    console.log(`Missing embedding for course: ${course.kurskode}`);
-                    return null;
-                }
-
                 const similarity = calculateCourseSimilarity(
                     newCourseData.embedding,
                     course.embedding
                 );
 
+                // Forbedret logging for pensum-sammenligning
+                console.log('Course comparison:', {
+                    new_course: {
+                        name: newCourseData.name,
+                        pensum_length: newCourseData.pensum?.length || 0,
+                        pensum_sample: newCourseData.pensum?.substring(0, 100)
+                    },
+                    existing_course: {
+                        kurskode: course.kurskode,
+                        pensum_length: course.pensum?.length || 0,
+                        pensum_sample: course.pensum?.substring(0, 100)
+                    }
+                });
+
                 return {
+                    // Eksisterende felt
                     kurskode: course.kurskode,
                     kursnavn: course.kursnavn,
                     credits: course.credits,
@@ -297,15 +305,14 @@ export const findSimilarCourses = async (newCourseData, storedCourses) => {
                     learning_outcome_knowledge: course.learning_outcome_knowledge,
                     learning_outcome_skills: course.learning_outcome_skills,
                     learning_outcome_general_competence: course.learning_outcome_general_competence,
-                    link_nb: course.link_nb,  // Sørg for at disse blir med
-                    link_en: course.link_en,  // Sørg for at disse blir med
+                    pensum: course.pensum,
+                    link_nb: course.link_nb,
+                    link_en: course.link_en,
                     similarity
                 };
             })
-            .filter(result => result !== null)
+            .filter(Boolean)
             .sort((a, b) => b.similarity - a.similarity);
-
-        return similarities;
     } catch (error) {
         console.error('Error in findSimilarCourses:', error);
         throw error;
@@ -468,30 +475,136 @@ export async function testHuggingFaceConnection() {
 }
 
 export const generateCourseAnalysis = async (newCourse, existingCourse, similarity) => {
-    const prompt = `
-Du er en assistent som hjelper administrasjonen ved et universitet med å identifisere potensielle overlapp mellom kurs. 
+    // Mer detaljert logging
+    console.log('Raw input data:', {
+        newCourse,
+        existingCourse,
+        similarity
+    });
 
-Sammenlign følgende kurs:
-Nytt kurs: "${newCourse.name}"
-Eksisterende kurs: "${existingCourse.kurskode} - ${existingCourse.kursnavn}"
-Beregnet likhet: ${similarity}%
+    // Forbedret logging for å verifisere pensum-data
+    console.log('Course data received for analysis:', {
+        new_course: {
+            name: newCourse.name,
+            pensum_exists: !!newCourse.pensum,
+            pensum_length: newCourse.pensum?.length || 0,
+            pensum_content: newCourse.pensum?.substring(0, 100) || 'No content',
+            literature_exists: !!newCourse.literature,
+            literature_length: newCourse.literature?.length || 0
+        },
+        existing_course: {
+            kurskode: existingCourse.kurskode,
+            pensum_exists: !!existingCourse.pensum,
+            pensum_length: existingCourse.pensum?.length || 0,
+            pensum_content: existingCourse.pensum?.substring(0, 100) || 'No content'
+        }
+    });
 
-Gi en strukturert analyse som inkluderer:
-1. Hovedtemaer som overlapper
-2. Vesentlige forskjeller i innhold eller fokusområder
-3. Kort anbefaling basert på overlapp${similarity >= 60 ? ' (Merk: Ved høyt overlapp som her bør man vurdere om begge kurs er nødvendige)' : ''}
+    // Forenklet hjelpefunksjon for å formatere pensum med bedre logging
+    const formatPensum = (course) => {
+        console.log('Formatting pensum for course:', {
+            name: course.name || course.kurskode,
+            pensum: !!course.pensum,
+            literature: !!course.literature
+        });
 
-Avslutt alltid analysen med følgende tekst:
-"NB: Dette er en automatisk analyse basert på oppgitte kursbeskrivelser, og kan ikke erstatte en grundig faglig vurdering. Analysen bør kun brukes som et utgangspunkt for videre faglig vurdering."
+        const pensumText = course.pensum || course.literature || '';
+        if (!pensumText) {
+            console.log(`No pensum found for course: ${course.name || course.kurskode}`);
+            return 'Ikke spesifisert';
+        }
+        return pensumText;
+    };
 
-Svar kort og konsist, og fokuser på faktiske overlapp fremfor subjektive vurderinger.`;
+    // Hjelpefunksjon for å formatere læringsutbytte
+    const formatLearningOutcomes = (course) => {
+        return {
+            knowledge: course.learning_outcome_knowledge || '',
+            skills: course.learning_outcome_skills || '',
+            competence: course.learning_outcome_general_competence || ''
+        };
+    };
+
+    // Hent læringsutbytter
+    const newCourseOutcomes = formatLearningOutcomes(newCourse);
+    const existingCourseOutcomes = formatLearningOutcomes(existingCourse);
+
+    console.log('Analyzing courses with pensum:', {
+        new_course_pensum: formatPensum(newCourse),
+        existing_course_pensum: formatPensum(existingCourse)
+    });
+
+    const prompt = `Du er en erfaren norsk universitetsrådgiver hos handelshøyskolen BI som skal analysere potensielt overlapp mellom kurs.
+
+KURS SOM SAMMENLIGNES:
+
+NYTT KURS:
+Navn: "${newCourse.name}"
+Beskrivelse: ${newCourse.content || 'Ikke spesifisert'}
+Pensum: ${formatPensum(newCourse)}
+Læringsutbytte:
+${newCourseOutcomes.knowledge ? `- Kunnskap: ${newCourseOutcomes.knowledge}` : ''}
+${newCourseOutcomes.skills ? `- Ferdigheter: ${newCourseOutcomes.skills}` : ''}
+${newCourseOutcomes.competence ? `- Generell kompetanse: ${newCourseOutcomes.competence}` : ''}
+
+EKSISTERENDE KURS:
+Kode: ${existingCourse.kurskode}
+Navn: "${existingCourse.kursnavn}"
+Studiepoeng: ${existingCourse.credits || 'Ikke spesifisert'}
+Nivå: ${existingCourse.level_of_study || 'Ikke spesifisert'}
+Beskrivelse: ${existingCourse.course_content || 'Ikke spesifisert'}
+Pensum: ${formatPensum(existingCourse)}
+Læringsutbytte:
+${existingCourseOutcomes.knowledge ? `- Kunnskap: ${existingCourseOutcomes.knowledge}` : ''}
+${existingCourseOutcomes.skills ? `- Ferdigheter: ${existingCourseOutcomes.skills}` : ''}
+${existingCourseOutcomes.competence ? `- Generell kompetanse: ${existingCourseOutcomes.competence}` : ''}
+
+Beregnet overlapp: ${similarity}%
+
+Gi en strukturert analyse med følgende punkter:
+
+### 1. OVERLAPPENDE ELEMENTER
+- Identifiser hovedtemaer og konsepter som overlapper
+- Spesifiser hvilke læringsutbytter som er like
+${similarity >= 60 ? '- Påpek særlig kritiske overlapp som bør adresseres' : ''}
+
+### 2. UNIKE ELEMENTER
+- Beskriv unike temaer i nytt kurs
+- Beskriv unike temaer i eksisterende kurs
+- Vurder om forskjellene er vesentlige nok til å rettferdiggjøre separate kurs
+
+### 3. PENSUMVURDERING
+- Sammenlign pensum og læremidler
+- Identifiser overlappende litteratur
+- Vurder om pensumlistene kompletterer hverandre
+- Nevn alltid et par referanser
+
+### 4. NIVÅ OG MÅLGRUPPE
+- Sammenlign akademisk nivå
+- Vurder om kursene retter seg mot samme målgruppe
+- Analyser progresjon og forkunnskapskrav
+
+### 5. ANBEFALING
+${similarity >= 70
+            ? '- Vurder om kursene bør slås sammen eller om ett bør utgå\n- Foreslå konkrete tiltak for å redusere overlapp'
+            : similarity >= 40
+                ? '- Foreslå hvordan kursene kan differensieres tydeligere\n- Identifiser muligheter for komplementær læring'
+                : '- Vurder om kursene kan koordineres bedre\n- Foreslå eventuelle justeringer'}
+- Gi konkret anbefaling om videre handling
+
+VIKTIG: 
+- Vær konkret og spesifikk i analysene
+- Støtt vurderingene med eksempler fra kursbeskrivelsene
+- Fokuser på faglig relevans og studentenes læring
+
+NB: Dette er en automatisk analyse basert på tilgjengelig informasjon, og bør valideres av fagpersoner. Ved betydelig overlapp (>${similarity}%) bør grundigere faglig vurdering gjennomføres.`;
 
     try {
         const completion = await openai.chat.completions.create({
             messages: [{ role: "user", content: prompt }],
             model: "gpt-4-turbo-preview",
             temperature: 0.7,
-            max_tokens: 350
+            max_tokens: 1000
         });
 
         return completion.choices[0].message.content;

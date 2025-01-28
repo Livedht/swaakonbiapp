@@ -260,7 +260,6 @@ export const fetchStoredEmbeddings = async () => {
     try {
         console.log('Fetching stored embeddings from Supabase');
 
-        // Legg til paginering her
         let allCourses = [];
         let page = 0;
         const pageSize = 1000;
@@ -286,7 +285,8 @@ export const fetchStoredEmbeddings = async () => {
                     learning_outcome_skills,
                     learning_outcome_general_competence,
                     link_nb,
-                    link_en
+                    link_en,
+                    pensum
                 `)
                 .range(page * pageSize, (page + 1) * pageSize - 1);
 

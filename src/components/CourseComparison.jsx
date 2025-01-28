@@ -422,6 +422,93 @@ const FilterBar = ({ filters, setFilters, results }) => {
     );
 };
 
+const AnalysisSection = styled(Box)(({ theme }) => ({
+    padding: theme.spacing(4),
+    backgroundColor: alpha(theme.palette.background.paper, 0.6),
+    '& h3': {  // Seksjonstitler
+        color: theme.palette.primary.main,
+        fontWeight: 600,
+        fontSize: '1.1rem',
+        marginTop: theme.spacing(3),
+        paddingBottom: theme.spacing(1),
+        borderBottom: `2px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+        '&:first-of-type': {
+            marginTop: 0
+        }
+    },
+    // Punktlister
+    '& ul': {
+        margin: theme.spacing(1, 0),
+        padding: 0,
+        listStyle: 'none'
+    },
+    // Listelementer - fjernet bullet points herfra siden vi bruker Typography component="li"
+    '& li': {
+        marginBottom: theme.spacing(1.5),
+        paddingLeft: theme.spacing(3),
+        position: 'relative',
+        '&::before': {
+            content: '"•"',
+            position: 'absolute',
+            left: theme.spacing(1),
+            color: theme.palette.primary.main
+        }
+    },
+    // Vanlig tekst
+    '& p': {
+        marginBottom: theme.spacing(2),
+        color: theme.palette.text.secondary
+    }
+}));
+
+const AnalysisHeader = styled(Typography)(({ theme }) => ({
+    fontSize: '1.2rem',
+    fontWeight: 600,
+    marginBottom: theme.spacing(2),
+    color: theme.palette.text.primary,
+    display: 'flex',
+    alignItems: 'center',
+    gap: theme.spacing(1)
+}));
+
+const OverlapBadge = styled(Box)(({ overlap, theme }) => ({
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '4px 12px',
+    borderRadius: '12px',
+    fontSize: '0.875rem',
+    fontWeight: 600,
+    backgroundColor: overlap >= 70
+        ? alpha(theme.palette.error.main, 0.1)
+        : overlap >= 50
+            ? alpha(theme.palette.warning.main, 0.1)
+            : alpha(theme.palette.success.main, 0.1),
+    color: overlap >= 70
+        ? theme.palette.error.main
+        : overlap >= 50
+            ? theme.palette.warning.main
+            : theme.palette.success.main
+}));
+
+// Legg til en ny styled component for input-feltene
+const ExpandableTextField = styled(TextField)(({ theme, multiline }) => ({
+    '& .MuiInputBase-root': {
+        resize: multiline ? 'vertical' : 'none',
+        overflow: 'auto',
+        minHeight: multiline ? '150px' : '56px', // Høyere minHeight for multiline
+        transition: 'all 0.2s ease'
+    },
+    '& .MuiInputBase-input': {
+        resize: 'none'
+    },
+    // Spesiell styling for multiline input
+    '& .MuiInputBase-inputMultiline': {
+        lineHeight: '1.5',
+        padding: theme.spacing(2),
+        whiteSpace: 'pre-wrap' // Bevarer linjeskift
+    }
+}));
+
 const CourseComparison = ({ restoredSearch, onSearchComplete }) => {
     const { searchState, updateSearchState } = useSearch();
     const [loading, setLoading] = useState(false);
@@ -498,10 +585,12 @@ const CourseComparison = ({ restoredSearch, onSearchComplete }) => {
 
             // Combine course information for embedding
             const courseText = {
+                name: formData.courseName.trim(),
                 kursnavn: formData.courseName.trim(),
                 kurskode: '',  // We don't have a course code for new courses
                 learning_outcome_knowledge: formData.courseDescription.trim(),
                 course_content: formData.courseDescription.trim(),
+                pensum: formData.courseLiterature?.trim() || '',
                 literature: formData.courseLiterature?.trim() || ''
             };
 
@@ -527,7 +616,16 @@ const CourseComparison = ({ restoredSearch, onSearchComplete }) => {
             }
 
             console.log('Finding similar courses...');
-            const similarCourses = await findSimilarCourses({ embedding }, storedCourses);
+            const similarCourses = await findSimilarCourses(
+                {
+                    embedding,
+                    name: formData.courseName.trim(),
+                    content: formData.courseDescription.trim(),
+                    pensum: formData.courseLiterature?.trim() || '',
+                    literature: formData.courseLiterature?.trim() || ''
+                },
+                storedCourses
+            );
 
             if (similarCourses.length === 0) {
                 updateSearchState({ results: [] });
@@ -648,14 +746,12 @@ const CourseComparison = ({ restoredSearch, onSearchComplete }) => {
 
     const toggleExplanation = (course) => {
         if (course.explanation) {
-            // If explanation exists, just toggle visibility
             setExpandedExplanations(prev => ({
                 ...prev,
                 [course.kurskode]: !prev[course.kurskode]
             }));
         } else {
-            // If no explanation exists, generate one
-            handleGenerateExplanation(course, formData.courseDescription);
+            handleGenerateExplanation(course, formData);
             setExpandedExplanations(prev => ({
                 ...prev,
                 [course.kurskode]: true
@@ -667,14 +763,16 @@ const CourseComparison = ({ restoredSearch, onSearchComplete }) => {
         localStorage.setItem(COLUMN_SETTINGS_KEY, JSON.stringify(availableColumns));
     }, [availableColumns]);
 
-    const handleGenerateExplanation = async (course, courseText) => {
+    const handleGenerateExplanation = async (course, formData) => {
         setLoadingExplanations(prev => ({ ...prev, [course.kurskode]: true }));
 
         try {
             const explanation = await generateCourseAnalysis(
                 {
                     name: formData.courseName,
-                    content: courseText,
+                    content: formData.courseDescription,
+                    pensum: formData.courseLiterature || '',
+                    literature: formData.courseLiterature || ''
                 },
                 course,
                 course.similarity
@@ -813,14 +911,16 @@ const CourseComparison = ({ restoredSearch, onSearchComplete }) => {
                     }}>
                         <Grid container spacing={3}>
                             <Grid item xs={12}>
-                                <TextField
+                                <ExpandableTextField
                                     fullWidth
                                     name="courseName"
-                                    label="Course Name"
+                                    label="Kursnavn"
                                     value={formData.courseName}
                                     onChange={handleInputChange}
                                     required
                                     variant="filled"
+                                    placeholder="Kurskode og navn"
+                                    helperText="F.eks. BIK2003 HR og personalledelse"
                                     InputProps={{
                                         sx: {
                                             borderRadius: '12px',
@@ -830,34 +930,42 @@ const CourseComparison = ({ restoredSearch, onSearchComplete }) => {
                                 />
                             </Grid>
                             <Grid item xs={12}>
-                                <TextField
+                                <ExpandableTextField
                                     fullWidth
                                     name="courseDescription"
-                                    label="Course Description"
+                                    label="Læringsmål og kursinnhold"
                                     value={formData.courseDescription}
                                     onChange={handleInputChange}
                                     required
                                     multiline
-                                    rows={4}
+                                    minRows={6}
+                                    maxRows={20}
                                     variant="filled"
+                                    placeholder="Lim inn læringsmål (kunnskap, ferdigheter, generell kompetanse) og kursinnhold"
+                                    helperText="Læringsmål og kursinnhold er de viktigste elementene for analysen"
                                     InputProps={{
                                         sx: {
                                             borderRadius: '12px',
-                                            backgroundColor: 'rgba(0,0,0,0.02)'
+                                            backgroundColor: 'rgba(0,0,0,0.02)',
+
+
                                         }
                                     }}
                                 />
                             </Grid>
                             <Grid item xs={12}>
-                                <TextField
+                                <ExpandableTextField
                                     fullWidth
                                     name="courseLiterature"
-                                    label="Course Literature (Optional)"
+                                    label="Pensum (valgfritt)"
                                     value={formData.courseLiterature}
                                     onChange={handleInputChange}
                                     multiline
-                                    rows={3}
+                                    minRows={3}
+                                    maxRows={15}
                                     variant="filled"
+                                    placeholder="Lim inn pensumliste"
+                                    helperText="Pensum hjelper å identifisere faglig overlapp"
                                     InputProps={{
                                         sx: {
                                             borderRadius: '12px',
@@ -879,7 +987,7 @@ const CourseComparison = ({ restoredSearch, onSearchComplete }) => {
                                     ) : (
                                         <SearchIcon sx={{ mr: 1 }} />
                                     )}
-                                    Analyze Course Overlap
+                                    Analyser kursoverlapp
                                 </AnimatedButton>
                             </Grid>
                         </Grid>
@@ -1082,51 +1190,69 @@ const CourseComparison = ({ restoredSearch, onSearchComplete }) => {
                                                 {course.explanation && expandedExplanations[course.kurskode] && (
                                                     <TableRow>
                                                         <TableCell colSpan={availableColumns.length} sx={{ p: 0 }}>
-                                                            <RowExplanation
-                                                                className={`row-explanation ${expandedExplanations[course.kurskode] ? 'visible' : ''}`}
-                                                            >
-                                                                <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600, p: 2 }}>
-                                                                    Course Overlap Analysis
-                                                                </Typography>
-                                                                <Box sx={{ px: 2, pb: 2 }}>
-                                                                    {typeof course.explanation === 'string' ?
-                                                                        course.explanation.split('\n').map((line, index) => {
-                                                                            if (line.startsWith('###')) {
-                                                                                return (
-                                                                                    <Typography
-                                                                                        key={index}
-                                                                                        variant="subtitle2"
-                                                                                        sx={{
-                                                                                            mt: 2,
-                                                                                            mb: 1,
-                                                                                            color: 'primary.main',
-                                                                                            fontWeight: 600
-                                                                                        }}
-                                                                                    >
-                                                                                        {line.replace('###', '').trim()}
-                                                                                    </Typography>
-                                                                                );
-                                                                            }
+                                                            <AnalysisSection>
+                                                                <AnalysisHeader>
+                                                                    Overlappanalyse
+                                                                    <OverlapBadge overlap={course.similarity}>
+                                                                        {course.similarity}% overlapp
+                                                                    </OverlapBadge>
+                                                                </AnalysisHeader>
+                                                                {typeof course.explanation === 'string' ?
+                                                                    course.explanation.split('\n').map((line, index) => {
+                                                                        if (line.startsWith('###')) {
                                                                             return (
                                                                                 <Typography
                                                                                     key={index}
-                                                                                    variant="body2"
-                                                                                    sx={{
-                                                                                        mb: 1,
-                                                                                        pl: line.startsWith('▸') || line.startsWith('•') ? 2 : line.startsWith('-') ? 4 : 0
-                                                                                    }}
+                                                                                    variant="h3"
+                                                                                    component="h3"
+                                                                                >
+                                                                                    {line.replace('###', '').trim()}
+                                                                                </Typography>
+                                                                            );
+                                                                        } else if (line.startsWith('-')) {
+                                                                            return (
+                                                                                <Typography
+                                                                                    key={index}
+                                                                                    component="li"
+                                                                                >
+                                                                                    {line.replace('-', '').trim()}
+                                                                                </Typography>
+                                                                            );
+                                                                        } else if (line.startsWith('**')) {
+                                                                            return (
+                                                                                <Box
+                                                                                    key={index}
+                                                                                    className="highlighted"
+                                                                                >
+                                                                                    <Typography
+                                                                                        sx={{
+                                                                                            fontWeight: 500,
+                                                                                            color: 'text.primary',
+                                                                                            mb: 0
+                                                                                        }}
+                                                                                    >
+                                                                                        {line.replace(/\*\*/g, '').trim()}
+                                                                                    </Typography>
+                                                                                </Box>
+                                                                            );
+                                                                        } else if (line.trim()) {
+                                                                            return (
+                                                                                <Typography
+                                                                                    key={index}
+                                                                                    component="p"
                                                                                 >
                                                                                     {line}
                                                                                 </Typography>
                                                                             );
-                                                                        })
-                                                                        : (
-                                                                            <Typography variant="body2" color="text.secondary">
-                                                                                No explanation available
-                                                                            </Typography>
-                                                                        )}
-                                                                </Box>
-                                                            </RowExplanation>
+                                                                        }
+                                                                        return null;
+                                                                    })
+                                                                    : (
+                                                                        <Typography color="text.secondary">
+                                                                            Ingen analyse tilgjengelig
+                                                                        </Typography>
+                                                                    )}
+                                                            </AnalysisSection>
                                                         </TableCell>
                                                     </TableRow>
                                                 )}
