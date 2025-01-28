@@ -1,108 +1,98 @@
 import React, { useState } from 'react';
 import {
     Box,
-    Button,
     TextField,
+    Button,
     Typography,
-    Paper,
     CircularProgress,
-    Grid,
+    Paper,
     Alert,
-    Card,
-    CardContent,
-    Divider,
+    Tooltip,
+    IconButton
 } from '@mui/material';
-import AssessmentIcon from '@mui/icons-material/Assessment';
-import OpenAI from 'openai';
-import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted';
-import SchoolIcon from '@mui/icons-material/School';
-import VerifiedIcon from '@mui/icons-material/Verified';
-import NatureIcon from '@mui/icons-material/Nature';
-import RecommendIcon from '@mui/icons-material/Recommend';
-
-const openai = new OpenAI({
-    apiKey: process.env.REACT_APP_OPENAI_API_KEY,
-    dangerouslyAllowBrowser: true
-});
-
-const getIconForSection = (sectionNumber) => {
-    switch (sectionNumber) {
-        case 1: return <FormatListBulletedIcon />;
-        case 2: return <SchoolIcon />;
-        case 3: return <VerifiedIcon />;
-        case 4: return <NatureIcon />;
-        case 5: return <RecommendIcon />;
-        default: return null;
-    }
-};
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
+import { openai } from '../services/openai';
+import ReactMarkdown from 'react-markdown';
 
 const CourseAnalyzer = () => {
     const [courseDescription, setCourseDescription] = useState('');
-    const [analysis, setAnalysis] = useState(null);
+    const [analysis, setAnalysis] = useState('');
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
 
     const analyzeCourse = async () => {
         setLoading(true);
+        setError(null);
         try {
             const prompt = `
-Du er en erfaren universitetsrådgiver med ekspertise i kursbeskrivelser, pedagogikk og bærekraft. Analyser følgende kursbeskrivelse grundig.
+Du er en erfaren universitetsrådgiver og kvalitetsekspert med spesialkompetanse innen:
+- Pedagogisk kvalitet og læringsdesign
+- NOKUT's kvalitetsstandarder
+- Constructive alignment
+- Blooms taksonomi
+- Bærekraft i høyere utdanning
+- Studentsentrert læring
 
-Kursbeskrivelse:
+Analyser følgende kursbeskrivelse grundig og gi en omfattende kvalitetsanalyse:
+
 ${courseDescription}
 
-Gi en omfattende analyse strukturert i følgende seksjoner:
+Strukturer analysen slik:
 
-1. KVALITET OG STRUKTUR
-- Vurder klarhet og presisjon i språket
-- Evaluer struktur og organisering
-- Identifiser eventuelle uklare eller manglende elementer
-- Foreslå konkrete forbedringer i formuleringer
+### 1. OVERORDNET VURDERING
+- Helhetlig kvalitetsvurdering
+- Styrker og hovedutfordringer
+- Samsvar med nasjonale standarder
+- Tydelig målgruppe og nivå
 
-2. LÆRINGSUTBYTTE (Bloom's Taxonomy)
-- Analyser verbbruk mot Bloom's taxonomi
-- Vurder progresjonsnivå (er det passende for nivået?)
-- Sjekk balansen mellom kunnskaper, ferdigheter og generell kompetanse
-- Foreslå alternative formuleringer der det trengs
-- Er læringsutbyttene målbare og tydelige?
+### 2. LÆRINGSUTBYTTEBESKRIVELSER
+- Analyse av verb mot Blooms taksonomi
+- Balanse mellom kunnskaper, ferdigheter og generell kompetanse
+- Målbarhet og vurderbarhet
+- Nivåtilpasning og progresjon
+- Konkrete forbedringsforslag
 
-3. NOKUT-SAMSVAR
-- Vurder samsvar med Nasjonalt kvalifikasjonsrammeverk
-- Sjekk om alle påkrevde komponenter er dekket
-- Er nivået konsistent med studienivået?
-- Identifiser eventuelle mangler i forhold til NOKUT's krav
+### 3. PEDAGOGISK KVALITET
+- Constructive alignment (sammenheng mellom mål, aktiviteter og vurdering)
+- Studentaktive læringsformer
+- Vurderingsformer og tilbakemeldinger
+- Arbeidslivsrelevans
+- Forskningsbasering
 
-4. BÆREKRAFTSMÅL
-- Identifiser hvilke av FNs bærekraftsmål kurset potensielt støtter
-- Foreslå hvordan bærekraftsperspektivet kan styrkes
-- Vurder om kurset bidrar til samfunnsansvar og etisk bevissthet
+### 4. BÆREKRAFT OG SAMFUNNSRELEVANS
+- Kobling mot FNs bærekraftsmål
+- Etikk og samfunnsansvar
+- Tverrfaglighet og helhetsperspektiv
+- Innovasjon og fremtidsperspektiv
 
-5. ANBEFALINGER
-- Liste over prioriterte forbedringspunkter
-- Konkrete forslag til omformuleringer
-- Tips til styrking av beskrivelsen
-- Forslag til ytterligere elementer som kan inkluderes
+### 5. SPRÅK OG KOMMUNIKASJON
+- Klarspråk og presisjon
+- Konsistent begrepsbruk
+- Struktur og lesbarhet
+- Målgruppeorientering
 
-Avslutt analysen med:
-"NB: Dette er en automatisk analyse basert på oppgitt kursbeskrivelse/utkast til kursbeskrivelse. Den kan ikke erstatte en grunding faglig vurdering. Analysen bør kun brukes som et utgangspunkt for videre arbeid med kursbeskrivelsen."
+### 6. KONKRETE ANBEFALINGER
+- Prioriterte forbedringspunkter
+- Spesifikke omformuleringer
+- Forslag til nye elementer
+- Implementeringsråd
 
-Svar strukturert og konkret med følgende formatering:
-- Bruk ### for hovedoverskrifter (f.eks ### 1. KVALITET OG STRUKTUR)
-- Bruk - for hovedpunkter
-- Bruk   - (med to mellomrom før) for underpunkter
-- Unngå bruk av ** eller andre markeringer
-- Hold teksten ren og lettlest
-`;
+### OPPSUMMERING
+Kort oppsummering av hovedfunn og viktigste anbefalinger.
+
+NB: Dette er en automatisk analyse basert på beste praksis og gjeldende standarder. Den bør brukes som utgangspunkt for videre kvalitetsarbeid, ikke som en endelig vurdering.`;
 
             const completion = await openai.chat.completions.create({
                 messages: [{ role: "user", content: prompt }],
                 model: "gpt-4-turbo-preview",
                 temperature: 0.7,
-                max_tokens: 1500
+                max_tokens: 2500
             });
 
             setAnalysis(completion.choices[0].message.content);
         } catch (error) {
             console.error('Error analyzing course:', error);
+            setError('Kunne ikke analysere kursbeskrivelsen. Prøv igjen senere.');
         } finally {
             setLoading(false);
         }
@@ -110,143 +100,61 @@ Svar strukturert og konkret med følgende formatering:
 
     return (
         <Box sx={{ maxWidth: 1200, mx: 'auto', p: 3 }}>
-            <Paper sx={{ p: 4, mb: 4, borderRadius: 2 }}>
-                <Typography variant="h4" gutterBottom sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 2,
-                    color: 'primary.main',
-                    fontWeight: 'bold'
-                }}>
-                    <AssessmentIcon fontSize="large" />
-                    Kursanalyse Verktøy
+            <Box sx={{ mb: 4, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography variant="h4" component="h1">
+                    Kvalitetsanalyse av Kursbeskrivelse
                 </Typography>
+                <Tooltip title="Lim inn kursbeskrivelsen du ønsker å analysere. Verktøyet vil gi en omfattende kvalitetsanalyse basert på beste praksis og gjeldende standarder.">
+                    <IconButton>
+                        <HelpOutlineIcon />
+                    </IconButton>
+                </Tooltip>
+            </Box>
 
-                <Alert severity="info" sx={{ mb: 3 }}>
-                    Dette verktøyet analyserer kursbeskrivelser mot Bloom's taxonomy, NOKUT's krav og FNs bærekraftsmål.
-                    Lim inn hele kursbeskrivelsen inkludert læringsutbytter for en omfattende analyse.
+            {error && (
+                <Alert severity="error" sx={{ mb: 2 }}>
+                    {error}
                 </Alert>
+            )}
 
+            <Paper sx={{ p: 3, mb: 3 }}>
                 <TextField
                     fullWidth
-                    label="Kursbeskrivelse"
-                    value={courseDescription}
-                    onChange={(e) => setCourseDescription(e.target.value)}
                     multiline
                     rows={10}
-                    margin="normal"
-                    placeholder="Lim inn hele kursbeskrivelsen her..."
-                    sx={{
-                        '& .MuiOutlinedInput-root': {
-                            borderRadius: 2,
-                            backgroundColor: 'background.paper',
-                        }
-                    }}
+                    label="Lim inn kursbeskrivelse her"
+                    value={courseDescription}
+                    onChange={(e) => setCourseDescription(e.target.value)}
+                    variant="outlined"
                 />
 
                 <Button
                     variant="contained"
                     onClick={analyzeCourse}
                     disabled={loading || !courseDescription.trim()}
-                    sx={{
-                        mt: 3,
-                        py: 1.5,
-                        borderRadius: 2,
-                        fontWeight: 'bold'
-                    }}
-                    fullWidth
+                    sx={{ mt: 2 }}
                 >
-                    {loading ? (
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                            <CircularProgress size={24} color="inherit" />
-                            Analyserer kursbeskrivelse...
-                        </Box>
-                    ) : (
-                        'Analyser Kursbeskrivelse'
-                    )}
+                    {loading ? <CircularProgress size={24} /> : 'Start Kvalitetsanalyse'}
                 </Button>
             </Paper>
 
             {analysis && (
-                <Paper sx={{ p: 4, borderRadius: 2 }}>
-                    <Typography variant="h5" gutterBottom color="primary" sx={{ fontWeight: 'bold', mb: 3 }}>
+                <Paper sx={{ p: 3 }}>
+                    <Typography variant="h5" gutterBottom>
                         Analyseresultat
                     </Typography>
-                    <Grid container spacing={3}>
-                        {analysis.split('###').filter(Boolean).map((section, index) => {
-                            const [title, ...content] = section.trim().split('\n');
-                            return (
-                                <Grid item xs={12} key={index}>
-                                    <Card sx={{
-                                        mb: 2,
-                                        boxShadow: 2,
-                                        '&:hover': {
-                                            boxShadow: 4,
-                                            transform: 'translateY(-2px)',
-                                            transition: 'all 0.3s ease-in-out'
-                                        }
-                                    }}>
-                                        <CardContent>
-                                            <Typography variant="h6" gutterBottom sx={{
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: 1,
-                                                color: 'primary.main',
-                                                fontWeight: 'bold'
-                                            }}>
-                                                {getIconForSection(index + 1)}
-                                                {title.replace(/^\d+\.\s*/, '')}
-                                            </Typography>
-                                            <Divider sx={{ my: 2 }} />
-                                            {content.map((line, i) => {
-                                                if (!line.trim()) return null;
-
-                                                const cleanedLine = line.replace(/\*\*/g, '');
-
-                                                if (cleanedLine.startsWith('-')) {
-                                                    const indentLevel = cleanedLine.match(/^-\s*/)[0].length - 1;
-
-                                                    return (
-                                                        <Typography
-                                                            key={i}
-                                                            variant="body1"
-                                                            sx={{
-                                                                ml: 2 + (indentLevel * 2),
-                                                                mb: 1,
-                                                                display: 'flex',
-                                                                alignItems: 'flex-start',
-                                                                '&:before': {
-                                                                    content: '"•"',
-                                                                    marginRight: '8px',
-                                                                    color: 'primary.main'
-                                                                }
-                                                            }}
-                                                        >
-                                                            {cleanedLine.replace(/^-\s*/, '')}
-                                                        </Typography>
-                                                    );
-                                                }
-
-                                                if (cleanedLine.startsWith('NB:')) {
-                                                    return (
-                                                        <Alert severity="info" sx={{ mt: 2 }}>
-                                                            {cleanedLine}
-                                                        </Alert>
-                                                    );
-                                                }
-
-                                                return (
-                                                    <Typography key={i} variant="body1" paragraph>
-                                                        {cleanedLine}
-                                                    </Typography>
-                                                );
-                                            })}
-                                        </CardContent>
-                                    </Card>
-                                </Grid>
-                            );
-                        })}
-                    </Grid>
+                    <Box sx={{
+                        '& h3': {
+                            color: 'primary.main',
+                            mt: 3,
+                            mb: 2
+                        },
+                        '& ul': {
+                            pl: 3
+                        }
+                    }}>
+                        <ReactMarkdown>{analysis}</ReactMarkdown>
+                    </Box>
                 </Paper>
             )}
         </Box>
