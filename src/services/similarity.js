@@ -586,11 +586,10 @@ ${similarity >= 60 ? '- Påpek særlig kritiske overlapp som bør adresseres' : 
 
 ### 5. ANBEFALING
 ${similarity >= 70
-            ? '- Vurder om kursene bør slås sammen eller om ett bør utgå\n- Foreslå konkrete tiltak for å redusere overlapp'
+            ? '- Vurder om kursene ser ut til å være såpass overlappene at en student ikke kan ha de stående på samme vitnemål grunnet for høy grad av overlappå\n- Foreslå konkrete tiltak for å redusere overlapp'
             : similarity >= 40
                 ? '- Foreslå hvordan kursene kan differensieres tydeligere\n- Identifiser muligheter for komplementær læring'
                 : '- Vurder om kursene kan koordineres bedre\n- Foreslå eventuelle justeringer'}
-- Gi konkret anbefaling om videre handling
 
 VIKTIG: 
 - Vær konkret og spesifikk i analysene
@@ -604,7 +603,7 @@ NB: Dette er en automatisk analyse basert på tilgjengelig informasjon, og bør 
             messages: [{ role: "user", content: prompt }],
             model: "gpt-4-turbo-preview",
             temperature: 0.7,
-            max_tokens: 1000
+            max_tokens: 2000
         });
 
         return completion.choices[0].message.content;
